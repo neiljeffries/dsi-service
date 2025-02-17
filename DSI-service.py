@@ -1,3 +1,6 @@
+import json
+import os
+import sys
 from flask import Flask
 from flask_cors import CORS
 import socket
@@ -5,13 +8,26 @@ import threading
 import pystray
 from PIL import Image, ImageDraw
 
+def get_config_path():
+    if getattr(sys, 'frozen', False):
+        # If the application is run as a bundle, the PyInstaller bootloader
+        # extends the sys module by a flag frozen=True and sets the app 
+        # path into variable _MEIPASS'.
+        return os.path.join(sys._MEIPASS, 'config.json')
+    else:
+        return 'config.json'
+
+# Load configuration from external file
+with open(get_config_path()) as config_file:
+    config = json.load(config_file)
+
 app = Flask(__name__)
-CORS(app)  # Enable CORS for Angular
+CORS(app, resources={r"/*": {"origins": config["cors_origins"]}})  # Enable CORS with config
 
 def get_machine_name():
     return {"machine_name": socket.gethostname()}
 
-@app.route("/machine-name")
+@app.route(config["machine_name_route"])
 def machine_name():
     return get_machine_name()
 
@@ -32,7 +48,7 @@ def create_icon():
 
 # Start Flask server in a separate thread
 def run_flask():
-    app.run(host="0.0.0.0", port=5000, debug=False)
+    app.run(host=config["host"], port=config["port"], debug=False)
 
 if __name__ == "__main__":
     threading.Thread(target=run_flask, daemon=True).start()  # Run Flask in the background
