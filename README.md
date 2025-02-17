@@ -12,7 +12,7 @@ Endpoint: <http://localhost:5000/machine-name>
 
 If not installed, download and install Python from python.org.
 
-Run these commands in PowerShell or CDM:
+Once you have Python installed, run these commands in PowerShell or CDM:
 
     python --version
     pip install pyinstaller
