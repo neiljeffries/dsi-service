@@ -22,7 +22,7 @@ Once you have Python installed, run these commands in PowerShell or CMD:
 
 ## Compile into a Windows .exe file
 
-In PowerShell or CMD, navigate the the directory containing DSI-service.py & config.json files, then run one of the following commands, depending on your preference:
+In PowerShell or CMD, navigate to the directory containing DSI-service.py & config.json files, then run one of the following commands, depending on your preference:
 
 Create a folder with all files, config.json file is externally configurable. (Recommended)
 
@@ -44,9 +44,9 @@ DSI-service.exe will be in the "dist" folder (config embedded).
 ## Angular component code example
 
     export class AppComponent implements AfterViewInit {
-    
+
     machineName: string = '';
-    
+
     constructor(private userService: UserService) { }
 
         ngOnInit(): void {

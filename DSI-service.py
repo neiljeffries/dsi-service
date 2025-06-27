@@ -6,12 +6,13 @@ from flask_cors import CORS
 import socket
 import threading
 import pystray
+import getpass
 from PIL import Image, ImageDraw
 
 def get_config_path():
     if getattr(sys, 'frozen', False):
         # If the application is run as a bundle, the PyInstaller bootloader
-        # extends the sys module by a flag frozen=True and sets the app 
+        # extends the sys module by a flag frozen=True and sets the app
         # path into variable _MEIPASS'.
         return os.path.join(sys._MEIPASS, 'config.json')
     else:
@@ -25,7 +26,10 @@ app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": config["cors_origins"]}})  # Enable CORS with config
 
 def get_machine_name():
-    return {"machine_name": socket.gethostname()}
+    return {
+        "machine_name": socket.gethostname(),
+        "user_id": getpass.getuser()
+        }
 
 @app.route(config["machine_name_route"])
 def machine_name():
