@@ -26,10 +26,20 @@ app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": config["cors_origins"]}})  # Enable CORS with config
 
 def get_machine_name():
+    try:
+        machine_name = socket.gethostname()
+    except Exception:
+        machine_name = "unknown"
+
+    try:
+        user_id = getpass.getuser()
+    except Exception:
+        user_id = "unknown"
+
     return {
-        "machine_name": socket.gethostname(),
-        "user_id": getpass.getuser()
-        }
+        "machine_name": machine_name,
+        "user_id": user_id
+    }
 
 @app.route(config["machine_name_route"])
 def machine_name():
