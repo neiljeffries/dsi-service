@@ -8,6 +8,9 @@ import threading
 import pystray
 import getpass
 from PIL import Image, ImageDraw
+import time
+import tkinter as tk
+from tkinter import messagebox
 
 def get_config_path():
     if getattr(sys, 'frozen', False):
@@ -45,8 +48,16 @@ def get_machine_name():
 def machine_name():
     return get_machine_name()
 
-# Function to create an icon
-def create_icon():
+# Start Flask server in a separate thread and signal when started
+def run_flask(started_event):
+    try:
+        started_event.set()  # Signal before starting the server
+        app.run(host=config["host"], port=config["port"], debug=False)
+    except Exception as e:
+        started_event.clear()
+
+# Function to create an icon and update tooltip based on server status
+def create_icon(started_event):
     icon_size = (64, 64)
     image = Image.new("RGBA", icon_size, (255, 255, 255, 0))
     draw = ImageDraw.Draw(image)
@@ -57,13 +68,37 @@ def create_icon():
         exit(0)
 
     menu = pystray.Menu(pystray.MenuItem("Exit DSI Service", on_quit))
-    icon = pystray.Icon("server", image, "DSI Service is running", menu)
+    icon = pystray.Icon("server", image, "DSI Service", menu)
+
+    def update_tooltip():
+        # Wait a moment for the Flask thread to start
+        time.sleep(1)
+        if started_event.is_set():
+            icon.title = "DSI Service is running"
+            # Show a popup for successful start
+            try:
+                root = tk.Tk()
+                root.withdraw()
+                messagebox.showinfo("DSI Service", "DSI Service started successfully.")
+                root.destroy()
+            except Exception:
+                pass
+        else:
+            icon.title = "DSI Service failed to start"
+            # Optionally show a popup
+            try:
+                root = tk.Tk()
+                root.withdraw()
+                messagebox.showerror("DSI Service", "Failed to start the Flask server.")
+                root.destroy()
+            except Exception:
+                pass
+
+    threading.Thread(target=update_tooltip, daemon=True).start()
     icon.run()
 
-# Start Flask server in a separate thread
-def run_flask():
-    app.run(host=config["host"], port=config["port"], debug=False)
-
 if __name__ == "__main__":
-    threading.Thread(target=run_flask, daemon=True).start()  # Run Flask in the background
-    create_icon()  # Show system tray icon
+    started_event = threading.Event()
+    flask_thread = threading.Thread(target=run_flask, args=(started_event,), daemon=True)
+    flask_thread.start()
+    create_icon(started_event)
