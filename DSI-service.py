@@ -76,10 +76,10 @@ def create_icon(started_event):
     # Draw green "DSI" text centered
     try:
         from PIL import ImageFont
-        font = ImageFont.truetype("arialbd.ttf", 32)
+        font = ImageFont.truetype("arialbd.ttf", 64)
     except Exception:
         font = ImageFont.load_default()
-    text = "DSI"
+    text = "D"
     # Use textbbox for accurate measurement (Pillow >=8.0)
     try:
         bbox = draw.textbbox((0, 0), text, font=font)
