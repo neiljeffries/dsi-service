@@ -14,31 +14,25 @@ from tkinter import messagebox
 
 def get_config_path():
     if getattr(sys, 'frozen', False):
-        # If the application is run as a bundle, the PyInstaller bootloader
-        # extends the sys module by a flag frozen=True and sets the app
-        # path into variable _MEIPASS'.
         return os.path.join(sys._MEIPASS, 'config.json')
     else:
         return 'config.json'
 
-# Load configuration from external file
 with open(get_config_path()) as config_file:
     config = json.load(config_file)
 
 app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": config["cors_origins"]}})  # Enable CORS with config
+CORS(app, resources={r"/*": {"origins": config["cors_origins"]}})
 
 def get_machine_name():
     try:
         machine_name = socket.gethostname()
     except Exception:
         machine_name = "unknown"
-
     try:
         user_id = getpass.getuser()
     except Exception:
         user_id = "unknown"
-
     return {
         "machine_name": machine_name,
         "user_id": user_id
@@ -48,34 +42,51 @@ def get_machine_name():
 def machine_name():
     return get_machine_name()
 
-# Start Flask server in a separate thread and signal when started
 def run_flask(started_event):
     try:
-        started_event.set()  # Signal before starting the server
+        started_event.set()
         app.run(host=config["host"], port=config["port"], debug=False)
     except Exception as e:
         started_event.clear()
 
-# Function to create an icon and update tooltip based on server status
+def show_info_window():
+    info = get_machine_name()
+    root = tk.Tk()
+    root.title("DSI Service Info")
+    root.geometry("300x120")
+    root.resizable(False, False)
+    root.eval('tk::PlaceWindow . center')
+    label1 = tk.Label(root, text=f"Machine Name: {info['machine_name']}", font=("Arial", 12))
+    label1.pack(pady=(20, 5))
+    label2 = tk.Label(root, text=f"User ID: {info['user_id']}", font=("Arial", 12))
+    label2.pack(pady=(0, 10))
+    btn = tk.Button(root, text="Close", command=root.destroy)
+    btn.pack()
+    root.mainloop()
+
 def create_icon(started_event):
     icon_size = (64, 64)
     image = Image.new("RGBA", icon_size, (255, 255, 255, 0))
     draw = ImageDraw.Draw(image)
-    draw.ellipse((10, 10, 54, 54), fill=(0, 255, 0))  # Bright green dot
+    draw.ellipse((10, 10, 54, 54), fill=(0, 255, 0))
 
     def on_quit(icon, item):
         icon.stop()
         exit(0)
 
-    menu = pystray.Menu(pystray.MenuItem("Exit DSI Service", on_quit))
+    def on_show_info(icon, item):
+        threading.Thread(target=show_info_window, daemon=True).start()
+
+    menu = pystray.Menu(
+        pystray.MenuItem("Show Info", on_show_info),
+        pystray.MenuItem("Exit DSI Service", on_quit)
+    )
     icon = pystray.Icon("server", image, "DSI Service", menu)
 
     def update_tooltip():
-        # Wait a moment for the Flask thread to start
         time.sleep(1)
         if started_event.is_set():
             icon.title = "DSI Service is running"
-            # Show a popup for successful start
             try:
                 root = tk.Tk()
                 root.withdraw()
@@ -85,7 +96,6 @@ def create_icon(started_event):
                 pass
         else:
             icon.title = "DSI Service failed to start"
-            # Optionally show a popup
             try:
                 root = tk.Tk()
                 root.withdraw()
@@ -95,7 +105,7 @@ def create_icon(started_event):
                 pass
 
     threading.Thread(target=update_tooltip, daemon=True).start()
-    icon.run()
+    icon.run_detached()
 
 if __name__ == "__main__":
     started_event = threading.Event()
