@@ -6,13 +6,13 @@ for /f "tokens=2 delims==." %%I in ('"wmic os get localdatetime /value"') do set
 set version=%datetime:~0,8%-%datetime:~8,6%
 
 REM Set output folder
-set outdir=dist\builds\%version%
+set outdir=dist\stand_alone_builds\%version%
 
 REM Create the output folder
 mkdir "%outdir%"
 
 REM Build with PyInstaller, outputting to the versioned folder
-pyinstaller --add-data "config.json;." --noconsole --clean --distpath "%outdir%" DSI-service.py
+pyinstaller --onefile --add-data "config.json;." --noconsole --clean --distpath "%outdir%" DSI-service.py
 
 
 endlocal

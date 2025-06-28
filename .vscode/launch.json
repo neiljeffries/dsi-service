@@ -11,6 +11,14 @@
       "runtimeExecutable": "cmd.exe",
       "args": ["/c", "${workspaceFolder}/build.bat"],
       "console": "integratedTerminal"
+    },
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "build_stand_alone.bat",
+      "runtimeExecutable": "cmd.exe",
+      "args": ["/c", "${workspaceFolder}/build_stand_alone.bat"],
+      "console": "integratedTerminal"
     }
   ]
 }
