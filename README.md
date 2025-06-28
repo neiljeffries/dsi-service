@@ -1,12 +1,25 @@
 # DSI-service
 
-What does this thing do?
+DSI-service was created and tested on Windows 11.
 
-This python script (DSI-service.py) gets compiled into an exe file for Windows.
+DSI-service is a lightweight flask server that runs in the background on Windows. It provides the machine name and logged in user id to the endpoint "/machine-name".
 
-It runs a lightweight flask server which exposes the machine name at an endpoint:
 
-Endpoint: <http://localhost:5000/machine-name>
+
+***Flask Server Settings:***
+
+Configurable in /config.json
+ - Port: 5000
+ - Endpoint: <http://localhost:5000/machine-name>
+
+***Response Object***
+
+```json
+{
+  "machine_name":"BOBS_COOL_PC",
+  "user_id":"BOB"
+}
+```
 
 ## Install Python
 
@@ -22,25 +35,36 @@ pip install flask-cors
 pip install pystray pillow
 ```
 
-## Compile into a Windows .exe file
 
-In PowerShell or CMD, navigate to the directory containing DSI-service.py & config.json files, then run one of the following commands, depending on your preference:
 
-**Create a folder with all files, config.json file is externally configurable. (Recommended)**
+## Use PyInstaller to compile the exe file for Windows
+
+1. Open PowerShell or a CMD.
+
+2. Navigate to this project directory, make sure you are in the same directory containing DSI-service.py & config.json files.
+
+3. Run one of the following commands. There are 2 examples below: the first is for a folder build. The second is for a stand alone build.
+
+#### Example 1
+
+**Create a folder with all files**
+- The ';config.json file is externally configurable with the folder build. (Recommended)**
 
 ```cmd
 pyinstaller --add-data "config.json;." --noconsole DSI-service.py
 ```
 
-DSI-service.exe will be in the "dist\DSI-service" folder.
+By default, the DSI-service.exe will output to "dist\DSI-service" folder.
 
 The config.json file will be located in "dist\\DSI-service\\_internal" folder.
 
 -- OR --
 
+#### Example 2
+
 **Create a stand alone .exe file with compiled config inside it**
 
-<span style="color:red">WARNING:</span>  You might need to add "dsi-service.exe" to the exceptions list for your antivirus when building the **stand alone .exe**.
+<span style="color:red">WARNING:</span>  You might need to add "dsi-service.exe" to the exceptions list for your antivirus when building the **stand alone .exe** with PyInstaller.
 ```cmd
 pyinstaller --onefile --add-data "config.json;." --noconsole DSI-service.py
 ```
@@ -48,17 +72,24 @@ pyinstaller --onefile --add-data "config.json;." --noconsole DSI-service.py
 DSI-service.exe will be in the "dist" folder (config embedded).
 
 
-Batch Files:
+***Batch Files:***
 You can also use the .bat files in the root of this project to build a folder version or stand alone version of dsi-service.
- - build.bat will build the folder version.
- - build_stand_alone.bat will build the stand alone version.
+ - Batch File: build.bat
+    - builds the folder version.
+ - Batch File: build_stand_alone.bat
+    - builds the stand alone version.
 
-Both methods will output to versioned folders in the dist/ directory.
+Both batch scripts will output to versioned folders inside the dist/ directory.
 
-## Angular component code example
+## Integrating Angular with DSI-Service.exe
+
+In the AppComponent we make the initial call to the DSI-Service endpoint running on the Windows machine.
+ - Calls *this.userService.getMachineName()*
+
+***AppComponent.ts***
 
 ```typescript
-    export class AppComponent implements AfterViewInit {
+    export class AppComponent{
 
     export class DsiMachineInfo {
         machine_name!: string;
@@ -92,10 +123,76 @@ Both methods will output to versioned folders in the dist/ directory.
     }
 ```
 
-## Angular service code example
+## Angular Service
+
+In the Angular service we are creating a behavior subject to make data available for any components that need to subscribe.
+
+***UserService.ts***
 
 ```typescript
-    getMachineName(): Observable<any> {
-        return this.http.get<any>('<http://localhost:5000/machine-name>');
-    }
+
+export class UserService {
+  private machineInfoSubject = new BehaviorSubject<MachineInfo | null>(null);
+  public machineInfo$ = this.machineInfoSubject.asObservable();
+
+  constructor(private http: HttpClient) {}
+
+  getMachineInfo(): MachineInfo | null {
+    return this.machineInfoSubject.value;
+  }
+
+  setMachineInfo(machineInfo: MachineInfo): void {
+    this.machineInfoSubject.next(machineInfo);
+  }
+
+  getMachineName(): Observable<MachineInfo> {
+    return this.http.get<MachineInfo>('http://localhost:5000/machine-name').pipe(
+      tap(machineInfo => this.setMachineInfo(machineInfo))
+    );
+  }
+
+}
+```
+
+#### How to subscribe to the behaviour subject in another component
+
+Subscribe to the machine info data
+
+
+***YourComponent.ts***
+```typescript
+import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Subscription } from 'rxjs';
+import { UserService, MachineInfo } from './services/user.service';
+
+export class YourComponent implements OnInit, OnDestroy {
+  machineInfo$ = this.userService.machineInfo$;
+  machineInfo: MachineInfo | null = null;
+  private subscription = new Subscription();
+
+  constructor(private userService: UserService) {}
+
+  ngOnInit(): void {
+    // Subscribe to changes
+    this.subscription.add(
+      this.machineInfo$.subscribe(info => {
+        this.machineInfo = info;
+        if (info) {
+          console.log('Machine info updated:', info);
+          // Do something with the data
+          this.handleMachineInfoUpdate(info);
+        }
+      })
+    );
+  }
+
+  ngOnDestroy(): void {
+    this.subscription.unsubscribe();
+  }
+
+  private handleMachineInfoUpdate(info: MachineInfo): void {
+    // Custom logic when machine info updates
+    console.log(`Hello ${info.user_id} on ${info.machine_name}`);
+  }
+}
 ```

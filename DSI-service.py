@@ -12,9 +12,10 @@ from tkinter import messagebox
 from flask import Flask
 from flask_cors import CORS
 import ctypes
-import ctypes.wintypes
+
 
 # Check if running as a frozen executable (e.g., PyInstaller)
+# This allows the script to find the config file in the correct location
 def get_config_path():
     if getattr(sys, 'frozen', False):
         return os.path.join(sys._MEIPASS, 'config.json')
@@ -24,9 +25,12 @@ def get_config_path():
 with open(get_config_path()) as config_file:
     config = json.load(config_file)
 
+# Ensure the config file has the required keys
+# required_keys = ["host", "port", "cors_origins", "machine_name_route"]
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": config["cors_origins"]}})
 
+# Get the machine name and user ID
 def get_machine_name():
     try:
         machine_name = socket.gethostname()
@@ -41,10 +45,12 @@ def get_machine_name():
         "user_id": user_id
     }
 
+# Define the Flask route to return machine name and user ID
 @app.route(config["machine_name_route"])
 def machine_name():
     return get_machine_name()
 
+# Function to run the Flask server in a separate thread
 def run_flask(started_event):
     try:
         started_event.set()
@@ -52,6 +58,7 @@ def run_flask(started_event):
     except Exception as e:
         started_event.clear()
 
+# Function to show the info window with machine name and user ID
 def show_info_window():
     info = get_machine_name()
     root = tk.Tk()
@@ -67,6 +74,7 @@ def show_info_window():
     btn.pack()
     root.mainloop()
 
+# Function to create the system tray icon
 def create_icon(started_event):
     icon_size = (64, 64)
     image = Image.new("RGBA", icon_size, (255, 255, 255, 0))
@@ -92,15 +100,21 @@ def create_icon(started_event):
         icon.stop()
         exit(0)
 
+    # Function to show the info window in a separate thread
+    # to avoid blocking the main thread
     def on_show_info(icon, item):
         threading.Thread(target=show_info_window, daemon=True).start()
 
+    # Create the system tray icon with a menu
+    # and set the tooltip to indicate the service status
     menu = pystray.Menu(
         pystray.MenuItem("Show Info", on_show_info),
         pystray.MenuItem("Exit DSI Service", on_quit)
     )
     icon = pystray.Icon("server", image, "DSI Service", menu)
 
+    # Function to update the tooltip after a delay
+    # and show a message box indicating success or failure
     def update_tooltip():
         time.sleep(1)
         if started_event.is_set():
@@ -125,17 +139,19 @@ def create_icon(started_event):
     threading.Thread(target=update_tooltip, daemon=True).start()
     icon.run_detached()
 
+# Function to check if the service is already running using a Windows named mutex
 def already_running_mutex():
     # Use a Windows named mutex to ensure single instance
     mutex_name = "DSI_SERVICE_SINGLETON_MUTEX"
     kernel32 = ctypes.windll.kernel32
-    mutex = kernel32.CreateMutexW(None, ctypes.c_bool(False), mutex_name)
+    kernel32.CreateMutexW(None, ctypes.c_bool(False), mutex_name)
     last_error = kernel32.GetLastError()
     # ERROR_ALREADY_EXISTS == 183
     if last_error == 183:
         return True
     return False
 
+# This function checks if the service is already running by trying to create a named mutex.
 if __name__ == "__main__":
     if already_running_mutex():
         root = tk.Tk()
