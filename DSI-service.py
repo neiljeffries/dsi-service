@@ -1,8 +1,6 @@
 import json
 import os
 import sys
-from flask import Flask
-from flask_cors import CORS
 import socket
 import threading
 import pystray
@@ -11,9 +9,12 @@ from PIL import Image, ImageDraw
 import time
 import tkinter as tk
 from tkinter import messagebox
+from flask import Flask
+from flask_cors import CORS
+import ctypes
+import ctypes.wintypes
 
 # Check if running as a frozen executable (e.g., PyInstaller)
-# If so, use the bundled config.json; otherwise, use the local one.
 def get_config_path():
     if getattr(sys, 'frozen', False):
         return os.path.join(sys._MEIPASS, 'config.json')
@@ -22,7 +23,6 @@ def get_config_path():
 
 with open(get_config_path()) as config_file:
     config = json.load(config_file)
-
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": config["cors_origins"]}})
@@ -41,12 +41,10 @@ def get_machine_name():
         "user_id": user_id
     }
 
-# Define the route for endpoint to get machine name and user ID
 @app.route(config["machine_name_route"])
 def machine_name():
     return get_machine_name()
 
-# Start the Flask server
 def run_flask(started_event):
     try:
         started_event.set()
@@ -76,17 +74,15 @@ def create_icon(started_event):
     # Draw green "DSI" text centered
     try:
         from PIL import ImageFont
-        font = ImageFont.truetype("arialbd.ttf", 64)
+        font = ImageFont.truetype("arialbd.ttf", 40)
     except Exception:
         font = ImageFont.load_default()
-    text = "D"
-    # Use textbbox for accurate measurement (Pillow >=8.0)
+    text = "DSI"
     try:
         bbox = draw.textbbox((0, 0), text, font=font)
         text_width = bbox[2] - bbox[0]
         text_height = bbox[3] - bbox[1]
     except AttributeError:
-        # Fallback for older Pillow
         text_width, text_height = font.getsize(text)
     x = (icon_size[0] - text_width) // 2
     y = (icon_size[1] - text_height) // 2
@@ -129,7 +125,24 @@ def create_icon(started_event):
     threading.Thread(target=update_tooltip, daemon=True).start()
     icon.run_detached()
 
+def already_running_mutex():
+    # Use a Windows named mutex to ensure single instance
+    mutex_name = "DSI_SERVICE_SINGLETON_MUTEX"
+    kernel32 = ctypes.windll.kernel32
+    mutex = kernel32.CreateMutexW(None, ctypes.c_bool(False), mutex_name)
+    last_error = kernel32.GetLastError()
+    # ERROR_ALREADY_EXISTS == 183
+    if last_error == 183:
+        return True
+    return False
+
 if __name__ == "__main__":
+    if already_running_mutex():
+        root = tk.Tk()
+        root.withdraw()
+        messagebox.showwarning("DSI Service", "DSI Service is already running.")
+        root.destroy()
+        sys.exit(0)
     started_event = threading.Event()
     flask_thread = threading.Thread(target=run_flask, args=(started_event,), daemon=True)
     flask_thread.start()
