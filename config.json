@@ -2,5 +2,6 @@
   "host": "0.0.0.0",
   "port": 5000,
   "cors_origins": "*",
-  "machine_name_route": "/machine-name"
+  "machine_name_route": "/machine-name",
+  "version": "2.0.0"
 }

@@ -13,6 +13,9 @@ from flask import Flask
 from flask_cors import CORS
 import ctypes
 
+# Application version
+
+
 
 # Check if running as a frozen executable (e.g., PyInstaller)
 # This allows the script to find the config file in the correct location
@@ -61,16 +64,42 @@ def run_flask(started_event):
 # Function to show the info window with machine name and user ID
 def show_info_window():
     info = get_machine_name()
+
+    # Get the executable path dynamically
+    if getattr(sys, 'frozen', False):
+        # If running as a PyInstaller executable
+        exe_path = sys.executable
+    else:
+        # If running as a Python script
+        exe_path = os.path.abspath(__file__)
+
     root = tk.Tk()
     root.title("DSI Service Info")
-    root.geometry("300x120")
+    root.geometry("400x250")  # Made window larger to accommodate the new info
     root.resizable(False, False)
     root.eval('tk::PlaceWindow . center')
-    label1 = tk.Label(root, text=f"Machine Name: {info['machine_name']}", font=("Arial", 12))
+
+    label1 = tk.Label(root, text=f"Machine Name: {info['machine_name']}", font=("Segoe UI", 12))
     label1.pack(pady=(20, 5))
-    label2 = tk.Label(root, text=f"User ID: {info['user_id']}", font=("Arial", 12))
-    label2.pack(pady=(0, 10))
-    btn = tk.Button(root, text="Close", command=root.destroy)
+
+    label2 = tk.Label(root, text=f"User ID: {info['user_id']}", font=("Segoe UI", 12))
+    label2.pack(pady=(0, 5))
+
+    # # Add version info
+    label3 = tk.Label(root, text=f"App Version: {config["version"]}", font=("Segoe UI", 12))
+    label3.pack(pady=(5, 5))
+
+    # Add the executable path label
+    label4 = tk.Label(root, text="Executable Path:", font=("Segoe UI", 12, "bold"))
+    label4.pack(pady=(10, 0))
+
+    # Use a text widget for the path so it can wrap if too long
+    path_text = tk.Text(root, height=2, width=50, wrap=tk.WORD, font=("Consolas", 10))
+    path_text.insert(tk.END, exe_path)
+    path_text.config(state=tk.DISABLED)  # Make it read-only
+    path_text.pack(pady=(5, 10))
+
+    btn = tk.Button(root, text="Close", command=root.destroy, font=("Segoe UI", 10))
     btn.pack()
     root.mainloop()
 
@@ -108,8 +137,8 @@ def create_icon(started_event):
     # Create the system tray icon with a menu
     # and set the tooltip to indicate the service status
     menu = pystray.Menu(
-        pystray.MenuItem("Show Info", on_show_info),
-        pystray.MenuItem("Exit DSI Service", on_quit)
+        pystray.MenuItem("About", on_show_info),
+        pystray.MenuItem("Exit", on_quit)
     )
     icon = pystray.Icon("server", image, "DSI Service", menu)
 
@@ -131,7 +160,7 @@ def create_icon(started_event):
             try:
                 root = tk.Tk()
                 root.withdraw()
-                messagebox.showerror("DSI Service", "Failed to start the Flask server.")
+                messagebox.showerror("DSI Service", "Failed to start DSI-Service.exe.")
                 root.destroy()
             except Exception:
                 pass
